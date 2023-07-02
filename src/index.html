@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+    <div>
+        <button onClick=addRate(-0.1)>Scanning speed+</button>
+        <button onClick=addRate(0.1)>Scanning speed-</button>
+        <br />
+        <button onClick="setColor('#090', ['42','195', '39'])">lineColorStr: '#090', sectorColorRGBArray: ['42','195', '39']</button>
+        <button onClick="setColor('#000099', ['00', '00', '99'])">lineColorStr: '#000099', sectorColorRGBArray: ['00', '00', '99']</button>
+    </div>
+
+    <div class="warp">
+        <div class="row">
+            <div class="card">
+                <canvas id="c2">您的浏览器暂不支持Canvas</canvas>
+                <div class="content">
+                    <div class="title">title</div>
+                    <div class="title">1234 <span>个</span></div>
+                    <div class="title">title</div>
+                </div>
+            </div>
+            <div class="card">2</div>
+            <div class="card">3</div>
+        </div>
+    </div>
+</body>
+<style>
+    .warp {
+        margin: 20px;
+    }
+
+    .row {
+        display: flex;
+    }
+
+    .card {
+        position: relative;
+        margin-right: 20px;
+        height: 140px;
+        min-width: 140px;
+        width: 33.3333%;
+        overflow: hidden;
+        border-radius: 16px;
+    }
+
+    .card:last-child {
+        margin-right: 0;
+    }
+
+    .content {
+        z-index: 11;
+    }
+
+    #c2 {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        top: 0;
+        left: 0;
+        z-index: 10;
+    }
+</style>
+<script src="./radar.js"></script>
+
+<script>
+    const canvas = document.getElementById('c2');
+    canvas.width = canvas.clientWidth;    // 避免缩放
+    canvas.height = canvas.clientHeight;  // 避免缩放
+
+    // 渲染渐变边缘
+    function renderGradientEdge(radarInstance, spredWidth, blinkColor, startAlpha) {
+        const { width, height } = radarInstance;
+        const blinkColorStr = blinkColor.join(',');
+        const grds = [
+            { grd: [0, 0, 0, spredWidth], rect: [0, 0, width, 8] },
+            { grd: [0, height, 0, height - spredWidth], rect: [0, height - spredWidth, width, height] },
+            { grd: [0, 0, spredWidth, 0], rect: [0, 0, spredWidth, height] },
+            { grd: [width, 0, width - spredWidth, 0], rect: [width - spredWidth, 0, width, height] },
+        ]
+        grds.forEach(item => {
+            const gradient = radarInstance.ctx.createLinearGradient(...item.grd);
+            gradient.addColorStop(0, `rgba(${blinkColorStr},${startAlpha})`);
+            gradient.addColorStop(1, `rgba(${blinkColorStr},0)`);
+            radarInstance.ctx.fillStyle = gradient;
+            radarInstance.ctx.fillRect(...item.rect);
+        })
+    }
+
+    let lastPeriodNum = 0;
+    let blinkCount = 1;
+    let blinkRanges = [[0.4, 1]]; // 在一个周期内，取一段时间闪烁
+
+    function onceBlink() {
+        lastPeriodNum = radar._periodCount;
+    }
+    function resetRadar(radarInstance) {
+        radarInstance.setOptions({
+            sectorColorRGBArray: radarInstance.originSectorColorRGBArray,
+            lineColorStr: radarInstance.originLineColorStr
+        })
+    }
+    const radar = new Radar(canvas, {
+        width: canvas.clientWidth,
+        height: canvas.clientHeight,
+        beforeRender: function (radarInstance) {
+            const { ctx, width, height, originSectorColorRGBArray, originLineColorStr, _processInPeriod, _periodCount } = radarInstance;
+            const blinkColor = ['99', '00', '00'];
+            let currAlpha = 1;
+
+            if (_periodCount - lastPeriodNum >= blinkCount) {
+                resetRadar(radarInstance);
+                return;
+            }
+
+            for (let i = 0; i < blinkRanges.length; i++) {
+                const range = blinkRanges[i];
+                const firstRange = [range[0], range[0] + (range[1] - range[0]) / 2];  // 上半颜色渐深
+                const bottomRange = [firstRange[1], range[1]];                        // 下半颜色渐浅
+                const halfWidth = firstRange[1] - firstRange[0];
+                if (firstRange[0] <= _processInPeriod && _processInPeriod < firstRange[1]) {
+                    currAlpha = ((_processInPeriod - firstRange[0]) / halfWidth);
+                    break;
+                } else if (bottomRange[0] <= _processInPeriod && _processInPeriod <= bottomRange[1]) {
+                    currAlpha = ((bottomRange[1] - _processInPeriod) / halfWidth);
+                    break;
+                }
+            }
+
+            if (currAlpha >= 1) {
+                radarInstance.setOptions({
+                    sectorColorRGBArray: originSectorColorRGBArray,
+                    lineColorStr: originLineColorStr
+                })
+                return
+            } else {
+                radarInstance.setOptions({
+                    sectorColorRGBArray: blinkColor,
+                    lineColorStr: `rgba(${blinkColor.join(',')},1)`
+                })
+            }
+
+            renderGradientEdge(radarInstance, 8, blinkColor, currAlpha);
+        }
+    });
+    radar.startScan();
+
+    window.addEventListener('resize', () => {
+        canvas.width = c2.clientWidth;    // 避免缩放
+        radar.setOptions({
+            width: canvas.width,
+            centerX: canvas.width / 2,
+            radius: canvas.width / 2 + 120
+        });
+    });
+
+
+    function addRate(detal) {
+        radar.setOptions({
+            scandPeriod: radar.scandPeriod + detal * 1000
+        });
+    }
+
+    function setColor(lineColorStr, sectorColorRGBArray) {
+        radar.setOptions({
+            originLineColorStr: lineColorStr,
+            originSectorColorRGBArray: sectorColorRGBArray
+        });
+    }
+</script>
+</html>

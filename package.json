@@ -1,0 +1,25 @@
+{
+  "name": "radar-canvas",
+  "version": "0.0.1",
+  "description": "use canvas to render radar scan",
+  "main": "index.js",
+  "scripts": {
+    "dev": "webpack serve --open --config ./webpack.config.dev.js",
+    "build": "npx webpack --config ./webpack.config.js"
+  },
+  "keywords": [
+    "radar",
+    "scan",
+    "canvas"
+  ],
+  "author": "cauth",
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/silverbolt/radar-canvas.git"
+  },
+  "bugs": {
+    "url": "https://github.com/silverbolt/radar-canvas/issues"
+  },
+  "homepage": "https://github.com/silverbolt/radar-canvas#readme"
+}
